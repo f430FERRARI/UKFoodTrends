@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>UK Food Trends</title>
+    <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">     
+<style> 
+      
+      body { 
+        font-family: 'Raleway', sans-serif;
+      } 
+
+    </style>
+  </head>
+  <body>
+    <script>
+      
+      // Render and create the chart
+      function render(data){
+      } 
+
+      function filterForDescription1(data) { 
+        var filteredData = data.filter(function(row) {
+          return !(row["desc2"])
+        });  
+
+        console.log(filteredData);
+      }
+
+      // Read the csv
+      d3.csv("uk_food_trends.csv", function(data) { 
+        // console.log(data);
+        // console.log(data[0]);
+        // console.log(data[0]["1974"]); 
+
+        filterForDescription1(data);
+      });  
+
+    </script>
+  </body>
+</html>
