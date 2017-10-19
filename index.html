@@ -18,14 +18,26 @@
       
       // Render and create the chart
       function render(data){
-      } 
+      }  
+
+      function readData(data) { 
+        var interpretedData = data.map(function(d){ 
+          return { 
+            key: d.desc1, 
+            values: [+d["1974"]]
+          }
+        }) 
+        return interpretedData;
+      }
 
       function filterForDescription1(data) { 
         var filteredData = data.filter(function(row) {
           return !(row["desc2"])
         });  
 
-        console.log(filteredData);
+        console.log(filteredData); 
+
+        return filteredData;
       }
 
       // Read the csv
@@ -34,7 +46,9 @@
         // console.log(data[0]);
         // console.log(data[0]["1974"]); 
 
-        filterForDescription1(data);
+        var filteredData = filterForDescription1(data);  
+        var interpretedData = readData(filteredData); 
+        console.log(interpretedData);
       });  
 
     </script>
