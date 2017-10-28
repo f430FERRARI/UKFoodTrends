@@ -11,18 +11,173 @@
         font-family: 'Raleway', sans-serif;
       } 
 
+      .header { 
+        display:flex;
+        align-items: center;
+        justify-content: center; 
+        margin-top: 5px; 
+        margin-bottom: 5px;   
+        margin-left: 5px; 
+        margin-right: 5px; 
+      }   
+
+      h1 { 
+        font-weight: bold;
+      }
+
+      svg { 
+        padding-left: 20px; 
+        padding-right: 20px;
+      }   
+
+      .axis path, .axis line {  
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      } 
+
+      .x.axis path {
+        display: none;
+      }
+
+      .axis text {
+        font-size: 12pt;
+      } 
+
+      .axis .label {
+        font-size: 20pt;
+      }
+
+      .y.axis path, .y.axis line {
+        stroke: none;
+      }    
+
+      .line {
+        fill: none; 
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+
     </style>
   </head>
   <body>
     <script>
+      // The food group 
+      var foodGroup = "Milk and milk products excluding cheese";
+
+      // Chart Settings
+      var totalWidth = 1000;
+      var totalHeight = 600;
+      var margin = { left: 150, top: 0, right: 20, bottom: 60 };
+      var innerWidth  = totalWidth  - margin.left - margin.right;
+      var innerHeight = totalHeight - margin.top  - margin.bottom;
+
+      // Axis settings 
+      var xAxisLabelText = "Year";
+      var xAxisLabelOffset = 55;
+
+      // Create main div
+      var main = d3.select("body").append("div"); 
+
+      // Create page headers
+      var title = main.append("h1")
+        .text("UK Food Trends")
+        .attr("class", "header"); 
+
+      // Create chart frame 
+      var svg = main.append("svg") 
+        .attr("width",  totalWidth)
+        .attr("height", totalHeight);
+      var g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
       
+      // Configure x and y range
+      var xScale = d3.scale.linear().range([0, innerWidth - 200]); 
+      var yScale = d3.scale.linear().range([innerHeight, 0 ]); 
+      
+      // Configure zScale
+      var color = d3.scale.category10();
+
+      // Configure axis groups
+      var xAxisG = g.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + innerHeight + ")")
+      var xAxisLabel = xAxisG.append("text")
+        .style("text-anchor", "middle")
+        .attr("x", innerWidth / 2)
+        .attr("y", xAxisLabelOffset)
+        .attr("class", "label")
+        .text(xAxisLabelText);
+      var yAxisG = g.append("g")  
+        .attr("class", "y axis"); 
+      var yAxisLabel = yAxisG.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 6)
+        .attr("dy", ".71em")
+        .style("text-anchor", "end")
+        .text("g/mL");
+
+      // Configure the x and y axis
+      var xAxis = d3.svg.axis() 
+        .scale(xScale) 
+        .orient("bottom")
+      var yAxis = d3.svg.axis() 
+        .scale(yScale) 
+        .orient("left")
+
+      // Configure line settings
+      var line = d3.svg.line()
+        .interpolate("basis")
+        .x(function(d) { return xScale(d.year); }) // ???
+        .y(function(d) { return yScale(d.quantity); }); // ???
+
       // Render and create the chart
-      function render(data){
+      function render(data){ 
+        // Read and format the data   
+        var filteredData = filterForDescription1(data);  
+        var foodData = mapObjects(filteredData); 
+
+        //color.domain(d3.keys(data[0]).filter(function(key) { return key !== "year"; }));
+
+        // Set the x and y domains
+        xScale.domain([1974, 2014]); 
+        yScale.domain([
+          d3.min(foodData, function(c) { return d3.min(c.values, function(v) { return v.quantity; }); }),
+          d3.max(foodData, function(c) { return d3.max(c.values, function(v) { return v.quantity; }); })
+        ]); 
+
+        console.log(foodData); 
+
+        // Create the x and y axis 
+        xAxisG.call(xAxis);
+        yAxisG.call(yAxis); 
+
+        // Read and enter the data
+        var food = svg.selectAll(".food")
+          .data(foodData)
+          .enter().append("g")
+          .attr("class", "food");
+
+        // Create the lines 
+        food.append("path")
+          .attr("class", "line")
+          .attr("d", function(d) { return line(d.values); }) 
+          .attr("transform", "translate(" + margin.left + "," + 0 + ")")
+
+          //.style("stroke", function(d) { return color(d.name); });
+
+        // Create the line labels
+        food.append("text")
+          .datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; })
+          .attr("transform", function(d) { return "translate(" + xScale(d.value.year) + "," + yScale(d.value.quantity) + ")"; })
+          .attr("x", 3)
+          .attr("dy", ".35em") 
+          .text(function(d) { return d.name; });
       }  
 
       function filterForDescription1(data) { 
         var filteredData = data.filter(function(row) {
-          return !(row["desc2"])
+          return row["desc1"] == foodGroup;
         });   
 
         return filteredData;
@@ -31,7 +186,7 @@
       function mapObjects(data) { 
         var interpretedData = data.map(function(d){ 
           return { 
-            key: d.desc1, 
+            name: d.desc1, 
             values: getValues(d)
           };
         }); 
@@ -39,9 +194,12 @@
       } 
 
       function getValues(row) { 
-        var values = new Object();
-        for (i=1974; i<=2014; i++) { 
-          values[String(i)] = +row[String(i)];
+        var values = new Array();
+        for (i=1974; i<=2014; i++) {  
+          var value = new Object(); 
+          value.year = i; 
+          value.quantity = +row[String(i)]; 
+          values.push(value);
         }  
 
         return values;
@@ -53,9 +211,10 @@
         // console.log(data[0]);
         // console.log(data[0]["1974"]); 
 
-        var filteredData = filterForDescription1(data);  
-        var interpretedData = mapObjects(filteredData); 
-        console.log(interpretedData);
+        // var filteredData = filterForDescription1(data);  
+        // var interpretedData = mapObjects(filteredData); 
+        // console.log(interpretedData); 
+        render(data);
       });  
 
     </script>
