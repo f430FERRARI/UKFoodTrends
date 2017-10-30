@@ -12,32 +12,30 @@
         font-family: 'Raleway', sans-serif;
       } 
 
-      .header { 
+      h1 {   
         display:flex;
         align-items: center;
         justify-content: center; 
-        margin-top: 5px; 
-        margin-bottom: 5px;   
-        margin-left: 5px; 
-        margin-right: 5px; 
-      }   
-
-      h1 { 
-        font-weight: bold;
+        margin: 40px 5px 5px 5px;
+        font-weight: bold; 
+        font-size: 35pt;
       }
 
-      #dropdown {
-        display: block;
-        margin: 0 auto;
+      h2 { 
+        font-size: 10pt; 
+        display:flex;
+        align-items: center;
+        justify-content: center; 
+      }
+
+      select { 
+        margin-left: 10px;
       }
 
       svg { 
-        padding-left: 20px; 
-        padding-right: 20px; 
-        padding-top: 20px;
-        padding-bottom: 20px; 
+        padding: 20px 20px 20px 20px;
         display: block;
-        margin: auto;
+        margin: 30px auto 30px auto;
       }   
 
       .axis path, .axis line {  
@@ -46,16 +44,16 @@
         shape-rendering: crispEdges;
       } 
 
-      .x.axis path {
-        display: none;
-      }
-
       .axis text {
         font-size: 12pt;
       } 
 
       .axis .label {
         font-size: 20pt;
+      }
+
+      .x.axis path {
+        display: none;
       }
 
       .y.axis path, .y.axis line {
@@ -92,25 +90,21 @@
       // Chart Settings
       var totalWidth = 960;
       var totalHeight = 500;
-      var margin = { left:  20, top: 20, right: 50, bottom: 30 };
+      var margin = { left:  50, top: 30, right: 50, bottom: 30 };
       var innerWidth  = totalWidth  - margin.left - margin.right;
       var innerHeight = totalHeight - margin.top  - margin.bottom;
-
-      // Axis settings 
-      // var xAxisLabelText = "x";
-      // var xAxisLabelOffset = 55;
 
       // Create main div
       var main = d3.select("body").append("div"); 
 
       // Create page headers
       var title = main.append("h1")
-        .text("UK Food Trends")
-        .attr("class", "header");  
-      var select = main.append('select')  
+        .text("UK Food Trends") 
+      var title2 = main.append("h2") 
+        .text("Food Group:") 
+      var select = title2.append('select')  
         .attr("class", "header") 
         .attr('id', 'dropdown')
-        .attr('class','header')
         .on('change',onchange);
 
       // Create chart frame 
@@ -140,8 +134,19 @@
       var tip = d3.tip()
         .attr('class', 'd3-tip')
         .offset([-10, 0])
-        .html(function(d) {
-          return "<strong>Food Group:</strong> <span style='color:red'>" + d.y + "</span>";
+        .html(function(d) { 
+          // Get the description 
+          var description;
+          if (d["desc4"]) { 
+            description = d["desc4"];
+          } else if (d["desc3"]) { 
+            description = d["desc3"]; 
+          } else if (d["desc2"]) { 
+            description = d["desc2"]; 
+          } else { 
+            description = d["desc1"]; 
+          }
+          return "<strong>" + description + ":</strong> <span style='color:red'>" + d.y + "</span>";
       }); 
 
       svg.call(tip);
@@ -156,31 +161,61 @@
         foodGroup = selection;  
         console.log(foodGroup); 
 
+        // Render the new food group
         d3.csv("uk_food_trends.csv", render); 
       }
 
+      // Filters for the selected food group and rows that count as layers
+      function filterFoodGroups(data) { 
+        var filteredData = data.filter(function(row) { 
+          return (row["desc1"] == foodGroup) && (row["layer"] == "Y");
+        });    
+
+        return filteredData;
+      }
+
+      // Maps the raw data into arrays (layers) that can be stacked
+      function mapObjects(data) { 
+        var arrayOfLayers = data.map(function(d){ 
+          var values = new Array();
+            for (i = 1974; i <= 2014; i++) { 
+              var dataPoint = {  
+                desc1: d["desc1"], 
+                desc2: d["desc2"], 
+                desc3: d["desc3"], 
+                desc4: d["desc4"], 
+                unit: d["unit"],
+                x: i, 
+                y: +d[String(i)]
+              };  
+              values.push(dataPoint);
+            }  
+            return values;
+        }); 
+        return arrayOfLayers;
+      } 
+
       // Render and create the chart
       function render(data){  
-        console.log(data);
-
         // Read and format the data   
-        var filteredData = filterForDescription1(data);  
-        var foodData = mapObjects(filteredData); 
+        var foodData = mapObjects(filterFoodGroups(data)); 
 
+        // Stack the layers by getting their y0 coordinates 
         var layers = d3.layout.stack()(foodData);  
 
-        //console.log(layers);  // TODO: Continue here 
-
+        // Assign the x and y domains
         xScale.domain(layers[0].map(function(d) { return d.x; }));
         yScale.domain([0, d3.max(layers[layers.length - 1], function(d) {  
           return d.y0 + d.y; })]).nice();
 
+        // Select the layer group
         var layer = svg.selectAll(".layer")
             .data(layers)
           .enter().append("g")
             .attr("class", "layer")
             .style("fill", function(d, i) { return zScale(i); });
 
+        // Create the layers
         layer.selectAll("rect")
             .data(function(d) { return d; })
           .enter().append("rect")
@@ -191,6 +226,7 @@
             .on('mouseover', tip.show)
             .on('mouseout', tip.hide);
 
+        // Create the x axis
         svg.append("g")
             .attr("class", "axis axis--x")
             .attr("transform", "translate(0," + innerHeight + ")")
@@ -200,8 +236,10 @@
             .attr("x", 9)
             .attr("dy", ".35em")
             .attr("transform", "rotate(90)")
-            .style("text-anchor", "start");
+            .style("text-anchor", "start") 
 
+        // Create the y axis
+        var unit = layers[0][0].unit; 
         svg.append("g")
             .attr("class", "axis axis--y")
             .attr("transform", "translate(" + innerWidth + ",0)")
@@ -211,56 +249,12 @@
             .attr("y", -20)
             .attr("dy", ".71em")
             .style("text-anchor", "end")
-            .text("g/mL"); // TODO: Get unit 
+            .text(unit); 
 
       }  
 
-      function getLayers(data) { 
-        var layers = new Array();
-
-        data.forEach(function(d) { 
-          if (d["desc4"]) { 
-            layers.push(d["desc4"]);
-          } else if (d["desc3"]) { 
-            layers.push(d["desc3"]); 
-          } else if (d["desc2"]) { 
-            layers.push(d["desc2"]);
-          } else { 
-            layers.push(d["desc1"]);
-          }
-        }); 
-
-        return layers;
-      }
-
-      // Returns an array of rows that count as a
-      function filterForDescription1(data) { 
-        var filteredData = data.filter(function(row) { 
-          return (row["desc1"] == foodGroup) && (row["layer"] == "Y");
-        });    
-        console.log(filteredData);
-
-        return filteredData;
-      }
-
-      function mapObjects(data) { 
-        var interpretedData = data.map(function(d){ 
-          var values = new Array();
-            for (i = 1974; i <= 2014; i++) { 
-              var dataPoint = { 
-                x: i, 
-                y: +d[String(i)]
-              };  
-              values.push(dataPoint);
-            }  
-            return values;
-        }); 
-        return interpretedData;
-      } 
-
-      // Read the csv
+      // Starting method. Read the csv
       d3.csv("uk_food_trends.csv", function(data) { 
-
         // Populate dropdown
         d3.select("#dropdown").selectAll("option")
           .data(d3.map(data, function(d){return d.desc1;}).keys())
